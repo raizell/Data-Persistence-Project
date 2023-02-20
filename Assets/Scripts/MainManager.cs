@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -12,13 +14,25 @@ public class MainManager : MonoBehaviour
 
     public Text ScoreText;
     public GameObject GameOverText;
+
+    //Fields for display the player info
+    public TextMeshProUGUI CurrentUserName;
+    public Text BestUserNameAndScore;
     
     private bool m_Started = false;
     private int m_Points;
     
     private bool m_GameOver = false;
-
     
+    //Static variables for user data
+    private static int BestScore;
+    private static string BestUser;
+
+     private void Awake()
+    {
+        LoadGameRank();
+    }
+
     // Start is called before the first frame update
     void Start()
     {
@@ -36,6 +50,9 @@ public class MainManager : MonoBehaviour
                 brick.onDestroyed.AddListener(AddPoint);
             }
         }
+        CurrentUserName.text = DataManager.Instance.UserName;
+
+        SetBestUser();
     }
 
     private void Update()
@@ -65,12 +82,80 @@ public class MainManager : MonoBehaviour
     void AddPoint(int point)
     {
         m_Points += point;
+        DataManager.Instance.Score = m_Points;
         ScoreText.text = $"Score : {m_Points}";
     }
 
     public void GameOver()
     {
         m_GameOver = true;
+        CheckBestUser();
         GameOverText.SetActive(true);
     }
+    
+    
+
+    private void CheckBestUser()
+    {
+        int CurrentScore = DataManager.Instance.Score;
+
+        if (CurrentScore > BestScore)
+        {
+            BestUser = DataManager.Instance.UserName;
+            BestScore = CurrentScore;
+
+            BestUserNameAndScore.text = $"Best Score - {BestUser}: {BestScore}";
+
+            DataManager.Instance.theBestUsr = BestUser;
+            DataManager.Instance.theBestScr = BestScore;
+
+            SaveGameRank(BestUser, BestScore);
+        }
+    }
+
+    private void SetBestUser()
+    {
+        if (BestUser == null && BestScore == 0)
+        {
+            BestUserNameAndScore.text = "";
+        }
+        else
+        {
+            BestUserNameAndScore.text = $"Best Score - {BestUser}: {BestScore}";
+        }
+
+    }
+
+    public void SaveGameRank(string bestUsrName, int bestUserScore)
+    {
+        SaveData data = new SaveData();
+
+        data.TheBestUser = bestUsrName;
+        data.HighestScore = bestUserScore;
+
+        string json = JsonUtility.ToJson(data);
+        File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+    }
+
+    public void LoadGameRank()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+
+            BestUser = data.TheBestUser;
+            BestScore = data.HighestScore;
+        }
+    }
+
+    [System.Serializable]
+    class SaveData
+    {
+        public int HighestScore;
+        public string TheBestUser;
+    }
+    
 }
